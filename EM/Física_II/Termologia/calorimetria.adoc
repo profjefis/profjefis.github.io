@@ -1,0 +1,61 @@
+:title: Calorimetria
+:author: Jefferson Rodrigues de Oliveira 
+:email: jefferson.oliveira@ifes.edu.br
+:toc: left
+:toc-title: Sumário
+:sectnums: 0
+
+= Calorimetria
+
+== Introdução
+
+== Capacidade Térmica
+
+== Calor específico
+
+== Calor latente
+
+== Trocas de calor
+
+== Exercícios
+
+=== Resolvidos
+
+{counter:exeres}. *(FUVEST - SP)* Um amolador de facas, ao operar um esmeril, é atingido por fagulhas incandescentes, mas não se queima. Isso acontece porque as fagulhas: +
+a) tem calor específico muito grande. +
+b) tem temperatura muito baixa. +
+c) tem capacidade térmica muito pequena. +
+d) estão em mudança de estado. +
+e) não transportam energia.
+
+*Resposta*:
+
+A fórmula da capacidade térmica é: \[C=\dfrac{Q}{\Delta T}\] Sendo a capacidade térmica $C$ das fagulhas muito pequena, elas transferem pouca quantidade de calor para o operador, o que é insuficiente para o queimar.
+
+*Alternativa c*
+
+=== Propostos
+
+{counter:exeprop}. Um veículo trafega em uma rodovia com velocidade média de 80 km/h. Sabendo que a viagem teve uma duração de 1 hora e 30 minutos 1,5 h, qual foi a distância percorrida pelo veículo? 
+[click.resposta]
+--
+300 km/h
+--
+
+{counter:exeprop}. Um veículo trafega em uma rodovia com velocidade média de 80 km/h. Sabendo que a viagem teve uma duração de 1 hora e 30 minutos (1,5 h), qual foi a distância percorrida pelo veículo? 
+
+=== Desafios
+
+{counter:exedes}. Um veículo trafega em uma rodovia com velocidade média de 80 km/h. Sabendo que a viagem teve uma duração de 1 hora e 30 minutos (1,5 h), qual foi a distância percorrida pelo veículo?
+
+I - Assim +
+II - Desta forma + 
+III - Portanto
+
+{counter:des1:a}) 8 cal/ ºC e 0,08 cal/g.ºC +
+{counter:des1}) 80 cal/ ºC e 0,16 cal/g.ºC +
+{counter:des1}) 90 cal/ ºC e 0,09 cal/g.ºC +
+{counter:des1}) 95 cal/ ºC e 0,15 cal/g.ºC +
+{counter:des1}) 120 cal/ ºC e 0,12 cal/g.ºC 
+ 
+{counter:exedes}. Um veículo trafega em uma rodovia com velocidade média de 80 km/h. Sabendo que a viagem teve uma duração de 1 hora e 30 minutos (1,5 h), qual foi a distância percorrida pelo veículo? 
