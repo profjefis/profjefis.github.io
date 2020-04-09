@@ -1,0 +1,51 @@
+:title: Notas de Aula - Física
+:author: Jefferson Rodrigues de Oliveira 
+:email: jefferson.oliveira@ifes.edu.br
+:toc: left
+:toc-title: Sumário
+:sectnums: 0
+
+= Notas de Aula
+
+== Ensino Médio
+
+=== Física I
+
+==== Unidades de Medida
+
+==== Cinemática
+
+==== Dinâmica
+
+==== Estática
+
+==== Hidrodinâmica
+
+=== Física II
+
+==== Termologia
+
+==== Óptica
+
+==== Ondas
+
+=== Física III
+
+==== Eletrostática
+
+==== Eletrodinâmica
+
+==== Magnetismo
+
+==== Introdução à Física Moderna e Contemporânea
+
+== Graduação
+
+=== Fundamentos da Mecânica Clássica
+
+=== Fenômenos de Transporte I
+
+=== Eletromagnetismo I
+
+=== Introdução à Física Moderna
+
