@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard de Análise de Prova</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .card { 
+            background: white; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+            padding: 20px; 
+            margin-bottom: 20px;
+        }
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+            margin-bottom: 20px;
+        }
+        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .stat-item { margin-bottom: 10px; }
+        .stat-value { font-weight: bold; color: #2980b9; }
+        .reliability {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        select, button { 
+            padding: 8px 12px; 
+            border-radius: 5px; 
+            border: 1px solid #ddd; 
+            margin: 5px 0;
+        }
+        .aluno-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .question-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .question-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .classification {
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        .easy { color: #27ae60; }
+        .medium { color: #f39c12; }
+        .hard { color: #e74c3c; }
+        .very-hard { color: #c0392b; }
+        .excellent { color: #27ae60; }
+        .good { color: #2ecc71; }
+        .acceptable { color: #f39c12; }
+        .weak { color: #e67e22; }
+        .very-weak { color: #e74c3c; }
+        .sort-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        .sort-btn {
+            padding: 8px 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .sort-btn:hover {
+            background: #2980b9;
+        }
+        .active-sort {
+            background: #2c3e50;
+        }
+        .controls-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .prova-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">Atualizando gráficos...</div>
+    
+    <div class="controls-container">
+        <h1>Dashboard de Análise de Prova</h1>
+        <div class="prova-selector">
+            <span>Tipo de Prova:</span>
+            <select id="prova-type" onchange="changeProvaType()">
+                <option value="A">A (1-14)</option>
+                <option value="B">B (14-1)</option>
+                <option value="C">C (Ímpares-Pares)</option>
+                <option value="D">D (Pares-Ímpares)</option>
+                <option value="E">E (Aleatória)</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>Estatísticas Gerais</h2>
+        <div class="grid">
+            <div>
+                <div class="stat-item">Média: <span class="stat-value" id="media">6.30</span></div>
+                <div class="stat-item">Moda: <span class="stat-value" id="moda">5.25</span></div>
+                <div class="stat-item">Mediana: <span class="stat-value" id="mediana">6.00</span></div>
+            </div>
+            <div>
+                <div class="stat-item">Desvio Padrão: <span class="stat-value" id="desvio">2.24</span></div>
+                <div class="stat-item">Pontuação Máxima: <span class="stat-value" id="maxima">10.50</span></div>
+                <div class="stat-item">Pontuação Mínima: <span class="stat-value" id="minima">0.75</span></div>
+            </div>
+        </div>
+        <div class="reliability">
+            <strong>Confiabilidade (KR20):</strong> <span id="kr20-value">0.609</span> - 
+            <span id="kr20-class" style="color:red">
+                Questionável
+            </span>
+            <div>Questões: 14 | Pontos por questão: 0.75</div>
+        </div>
+        <div class="aluno-list"><strong>Alunos que não fizeram a prova (3):</strong><br>Alexandre Siqueira de Paula<br>Ana Eloiza Ferreira de Jesus<br>Mateus Cubas de Souza</div>
+    </div>
+    
+    <div class="card">
+        <h2>Distribuição de Notas</h2>
+        <div id="histogram"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Análise por Questão</h2>
+        <div id="question-charts" class="question-grid"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Índices Psicométricos</h2>
+        <div class="sort-controls">
+            <span>Ordenar por:</span>
+            <button class="sort-btn active-sort" onclick="sortPsychometricCharts('number')">Número</button>
+            <button class="sort-btn" onclick="sortPsychometricCharts('difficulty')">Dificuldade</button>
+            <button class="sort-btn" onclick="sortPsychometricCharts('discrimination')">Discriminação</button>
+        </div>
+        <div class="two-columns">
+            <div id="difficulty-chart"></div>
+            <div id="discrimination-chart"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Dados completos carregados uma vez
+        const allData = {
+            scores: [85.71, 71.43, 50.0, 50.0, 57.14, 64.29, 64.29, 42.86, 42.86, 85.71, 57.14, 92.86, 92.86, 85.71, 78.57, 57.14, 78.57, 42.86, 100.0, 71.43, 42.86, 42.86, 64.29, 57.14, 71.43, 71.43, 28.57, 64.29, 71.43, 21.43, 64.29, 57.14, 50.0, 50.0, 28.57, 71.43, 64.29, 50.0, 50.0, 28.57, 50.0, 57.14, 57.14, 28.57, 28.57, 57.14, 35.71, 50.0, 50.0, 28.57, 57.14, 42.86, 35.71, 78.57, 42.86, 64.29, 57.14, 57.14, 57.14, 7.14, 50.0, 50.0, 42.86, 64.29, 50.0, 64.29, 28.57, 50.0, 100.0, 78.57, 64.29, 42.86, 71.43, 85.71, 85.71, 85.71, 50.0, 14.29, 78.57, 78.57, 92.86, 92.86, 92.86, 35.71, 42.86, 100.0, 28.57, 64.29, 35.71, 64.29, 92.86, 50.0, 28.57, 42.86, 71.43, 57.14, 78.57, 85.71, 100.0, 100.0, 50.0, 57.14, 64.29, 50.0, 92.86, 92.86],
+            allQuestionData: {"A": {"1": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 16, 3, 61, 22, 0], "percentValues": [3.7735849056603774, 15.09433962264151, 2.8301886792452833, 57.54716981132076, 20.754716981132077, 0.0], "difficulty": 0.5754716981132075, "difficultyClass": "M\u00e9dio", "discrimination": 0.33961038961038964, "discriminationClass": "Bom", "percentCorrect": 57.54716981132076, "acertos": 61, "gabarito": "D", "questaoReal": 1}, "2": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [48, 10, 18, 12, 17, 1], "percentValues": [45.28301886792453, 9.433962264150944, 16.9811320754717, 11.320754716981133, 16.037735849056602, 0.9433962264150944], "difficulty": 0.4528301886792453, "difficultyClass": "Dif\u00edcil", "discrimination": 0.7038961038961038, "discriminationClass": "Excelente", "percentCorrect": 45.28301886792453, "acertos": 48, "gabarito": "A", "questaoReal": 2}, "3": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [63, 7, 18, 7, 11, 0], "percentValues": [59.43396226415094, 6.60377358490566, 16.9811320754717, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.5506493506493506, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "A", "questaoReal": 3}, "4": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [1, 101, 1, 0, 3, 0], "percentValues": [0.9433962264150944, 95.28301886792453, 0.9433962264150944, 0.0, 2.8301886792452833, 0.0], "difficulty": 0.9528301886792453, "difficultyClass": "F\u00e1cil", "discrimination": 0.06818181818181823, "discriminationClass": "Muito fraco ou negativo", "percentCorrect": 95.28301886792453, "acertos": 101, "gabarito": "B", "questaoReal": 4}, "5": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [2, 1, 97, 6, 0, 0], "percentValues": [1.8867924528301887, 0.9433962264150944, 91.50943396226415, 5.660377358490567, 0.0, 0.0], "difficulty": 0.9150943396226415, "difficultyClass": "F\u00e1cil", "discrimination": 0.1019480519480519, "discriminationClass": "Fraco", "percentCorrect": 91.50943396226415, "acertos": 97, "gabarito": "C", "questaoReal": 5}, "6": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 54, 20, 0, 6, 0], "percentValues": [24.528301886792452, 50.943396226415096, 18.867924528301888, 0.0, 5.660377358490567, 0.0], "difficulty": 0.5094339622641509, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 50.943396226415096, "acertos": 54, "gabarito": "B", "questaoReal": 6}, "7": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 7, 52, 14, 7, 0], "percentValues": [24.528301886792452, 6.60377358490566, 49.056603773584904, 13.20754716981132, 6.60377358490566, 0.0], "difficulty": 0.49056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.4246753246753247, "discriminationClass": "Excelente", "percentCorrect": 49.056603773584904, "acertos": 52, "gabarito": "C", "questaoReal": 7}, "8": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [21, 8, 5, 8, 63, 1], "percentValues": [19.81132075471698, 7.547169811320755, 4.716981132075472, 7.547169811320755, 59.43396226415094, 0.9433962264150944], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.6357142857142857, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "E", "questaoReal": 8}, "9": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [11, 14, 31, 43, 7, 0], "percentValues": [10.377358490566039, 13.20754716981132, 29.245283018867923, 40.56603773584906, 6.60377358490566, 0.0], "difficulty": 0.4056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6694805194805196, "discriminationClass": "Excelente", "percentCorrect": 40.56603773584906, "acertos": 43, "gabarito": "D", "questaoReal": 9}, "10": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [59, 12, 17, 7, 11, 0], "percentValues": [55.660377358490564, 11.320754716981133, 16.037735849056602, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5566037735849056, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 55.660377358490564, "acertos": 59, "gabarito": "A", "questaoReal": 10}, "11": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [6, 27, 39, 18, 16, 0], "percentValues": [5.660377358490567, 25.471698113207548, 36.79245283018868, 16.9811320754717, 15.09433962264151, 0.0], "difficulty": 0.36792452830188677, "difficultyClass": "Dif\u00edcil", "discrimination": 0.5266233766233767, "discriminationClass": "Excelente", "percentCorrect": 36.79245283018868, "acertos": 39, "gabarito": "C", "questaoReal": 11}, "12": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 65, 10, 6, 21, 0], "percentValues": [3.7735849056603774, 61.32075471698113, 9.433962264150944, 5.660377358490567, 19.81132075471698, 0.0], "difficulty": 0.6132075471698113, "difficultyClass": "M\u00e9dio", "discrimination": 0.47077922077922074, "discriminationClass": "Excelente", "percentCorrect": 61.32075471698113, "acertos": 65, "gabarito": "B", "questaoReal": 12}, "13": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 1, 2, 3, 95, 1], "percentValues": [3.7735849056603774, 0.9433962264150944, 1.8867924528301887, 2.8301886792452833, 89.62264150943396, 0.9433962264150944], "difficulty": 0.8962264150943396, "difficultyClass": "F\u00e1cil", "discrimination": 0.2272727272727273, "discriminationClass": "Aceit\u00e1vel", "percentCorrect": 89.62264150943396, "acertos": 95, "gabarito": "E", "questaoReal": 13}, "14": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [5, 28, 10, 11, 51, 1], "percentValues": [4.716981132075472, 26.41509433962264, 9.433962264150944, 10.377358490566039, 48.113207547169814, 0.9433962264150944], "difficulty": 0.4811320754716981, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6298701298701298, "discriminationClass": "Excelente", "percentCorrect": 48.113207547169814, "acertos": 51, "gabarito": "E", "questaoReal": 14}}, "B": {"1": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [5, 28, 10, 11, 51, 1], "percentValues": [4.716981132075472, 26.41509433962264, 9.433962264150944, 10.377358490566039, 48.113207547169814, 0.9433962264150944], "difficulty": 0.4811320754716981, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6298701298701298, "discriminationClass": "Excelente", "percentCorrect": 48.113207547169814, "acertos": 51, "gabarito": "E", "questaoReal": 14}, "2": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 1, 2, 3, 95, 1], "percentValues": [3.7735849056603774, 0.9433962264150944, 1.8867924528301887, 2.8301886792452833, 89.62264150943396, 0.9433962264150944], "difficulty": 0.8962264150943396, "difficultyClass": "F\u00e1cil", "discrimination": 0.2272727272727273, "discriminationClass": "Aceit\u00e1vel", "percentCorrect": 89.62264150943396, "acertos": 95, "gabarito": "E", "questaoReal": 13}, "3": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 65, 10, 6, 21, 0], "percentValues": [3.7735849056603774, 61.32075471698113, 9.433962264150944, 5.660377358490567, 19.81132075471698, 0.0], "difficulty": 0.6132075471698113, "difficultyClass": "M\u00e9dio", "discrimination": 0.47077922077922074, "discriminationClass": "Excelente", "percentCorrect": 61.32075471698113, "acertos": 65, "gabarito": "B", "questaoReal": 12}, "4": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [6, 27, 39, 18, 16, 0], "percentValues": [5.660377358490567, 25.471698113207548, 36.79245283018868, 16.9811320754717, 15.09433962264151, 0.0], "difficulty": 0.36792452830188677, "difficultyClass": "Dif\u00edcil", "discrimination": 0.5266233766233767, "discriminationClass": "Excelente", "percentCorrect": 36.79245283018868, "acertos": 39, "gabarito": "C", "questaoReal": 11}, "5": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [59, 12, 17, 7, 11, 0], "percentValues": [55.660377358490564, 11.320754716981133, 16.037735849056602, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5566037735849056, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 55.660377358490564, "acertos": 59, "gabarito": "A", "questaoReal": 10}, "6": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [11, 14, 31, 43, 7, 0], "percentValues": [10.377358490566039, 13.20754716981132, 29.245283018867923, 40.56603773584906, 6.60377358490566, 0.0], "difficulty": 0.4056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6694805194805196, "discriminationClass": "Excelente", "percentCorrect": 40.56603773584906, "acertos": 43, "gabarito": "D", "questaoReal": 9}, "7": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [21, 8, 5, 8, 63, 1], "percentValues": [19.81132075471698, 7.547169811320755, 4.716981132075472, 7.547169811320755, 59.43396226415094, 0.9433962264150944], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.6357142857142857, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "E", "questaoReal": 8}, "8": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 7, 52, 14, 7, 0], "percentValues": [24.528301886792452, 6.60377358490566, 49.056603773584904, 13.20754716981132, 6.60377358490566, 0.0], "difficulty": 0.49056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.4246753246753247, "discriminationClass": "Excelente", "percentCorrect": 49.056603773584904, "acertos": 52, "gabarito": "C", "questaoReal": 7}, "9": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 54, 20, 0, 6, 0], "percentValues": [24.528301886792452, 50.943396226415096, 18.867924528301888, 0.0, 5.660377358490567, 0.0], "difficulty": 0.5094339622641509, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 50.943396226415096, "acertos": 54, "gabarito": "B", "questaoReal": 6}, "10": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [2, 1, 97, 6, 0, 0], "percentValues": [1.8867924528301887, 0.9433962264150944, 91.50943396226415, 5.660377358490567, 0.0, 0.0], "difficulty": 0.9150943396226415, "difficultyClass": "F\u00e1cil", "discrimination": 0.1019480519480519, "discriminationClass": "Fraco", "percentCorrect": 91.50943396226415, "acertos": 97, "gabarito": "C", "questaoReal": 5}, "11": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [1, 101, 1, 0, 3, 0], "percentValues": [0.9433962264150944, 95.28301886792453, 0.9433962264150944, 0.0, 2.8301886792452833, 0.0], "difficulty": 0.9528301886792453, "difficultyClass": "F\u00e1cil", "discrimination": 0.06818181818181823, "discriminationClass": "Muito fraco ou negativo", "percentCorrect": 95.28301886792453, "acertos": 101, "gabarito": "B", "questaoReal": 4}, "12": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [63, 7, 18, 7, 11, 0], "percentValues": [59.43396226415094, 6.60377358490566, 16.9811320754717, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.5506493506493506, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "A", "questaoReal": 3}, "13": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [48, 10, 18, 12, 17, 1], "percentValues": [45.28301886792453, 9.433962264150944, 16.9811320754717, 11.320754716981133, 16.037735849056602, 0.9433962264150944], "difficulty": 0.4528301886792453, "difficultyClass": "Dif\u00edcil", "discrimination": 0.7038961038961038, "discriminationClass": "Excelente", "percentCorrect": 45.28301886792453, "acertos": 48, "gabarito": "A", "questaoReal": 2}, "14": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 16, 3, 61, 22, 0], "percentValues": [3.7735849056603774, 15.09433962264151, 2.8301886792452833, 57.54716981132076, 20.754716981132077, 0.0], "difficulty": 0.5754716981132075, "difficultyClass": "M\u00e9dio", "discrimination": 0.33961038961038964, "discriminationClass": "Bom", "percentCorrect": 57.54716981132076, "acertos": 61, "gabarito": "D", "questaoReal": 1}}, "C": {"1": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 16, 3, 61, 22, 0], "percentValues": [3.7735849056603774, 15.09433962264151, 2.8301886792452833, 57.54716981132076, 20.754716981132077, 0.0], "difficulty": 0.5754716981132075, "difficultyClass": "M\u00e9dio", "discrimination": 0.33961038961038964, "discriminationClass": "Bom", "percentCorrect": 57.54716981132076, "acertos": 61, "gabarito": "D", "questaoReal": 1}, "2": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [63, 7, 18, 7, 11, 0], "percentValues": [59.43396226415094, 6.60377358490566, 16.9811320754717, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.5506493506493506, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "A", "questaoReal": 3}, "3": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [2, 1, 97, 6, 0, 0], "percentValues": [1.8867924528301887, 0.9433962264150944, 91.50943396226415, 5.660377358490567, 0.0, 0.0], "difficulty": 0.9150943396226415, "difficultyClass": "F\u00e1cil", "discrimination": 0.1019480519480519, "discriminationClass": "Fraco", "percentCorrect": 91.50943396226415, "acertos": 97, "gabarito": "C", "questaoReal": 5}, "4": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 7, 52, 14, 7, 0], "percentValues": [24.528301886792452, 6.60377358490566, 49.056603773584904, 13.20754716981132, 6.60377358490566, 0.0], "difficulty": 0.49056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.4246753246753247, "discriminationClass": "Excelente", "percentCorrect": 49.056603773584904, "acertos": 52, "gabarito": "C", "questaoReal": 7}, "5": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [11, 14, 31, 43, 7, 0], "percentValues": [10.377358490566039, 13.20754716981132, 29.245283018867923, 40.56603773584906, 6.60377358490566, 0.0], "difficulty": 0.4056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6694805194805196, "discriminationClass": "Excelente", "percentCorrect": 40.56603773584906, "acertos": 43, "gabarito": "D", "questaoReal": 9}, "6": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [6, 27, 39, 18, 16, 0], "percentValues": [5.660377358490567, 25.471698113207548, 36.79245283018868, 16.9811320754717, 15.09433962264151, 0.0], "difficulty": 0.36792452830188677, "difficultyClass": "Dif\u00edcil", "discrimination": 0.5266233766233767, "discriminationClass": "Excelente", "percentCorrect": 36.79245283018868, "acertos": 39, "gabarito": "C", "questaoReal": 11}, "7": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 1, 2, 3, 95, 1], "percentValues": [3.7735849056603774, 0.9433962264150944, 1.8867924528301887, 2.8301886792452833, 89.62264150943396, 0.9433962264150944], "difficulty": 0.8962264150943396, "difficultyClass": "F\u00e1cil", "discrimination": 0.2272727272727273, "discriminationClass": "Aceit\u00e1vel", "percentCorrect": 89.62264150943396, "acertos": 95, "gabarito": "E", "questaoReal": 13}, "8": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [48, 10, 18, 12, 17, 1], "percentValues": [45.28301886792453, 9.433962264150944, 16.9811320754717, 11.320754716981133, 16.037735849056602, 0.9433962264150944], "difficulty": 0.4528301886792453, "difficultyClass": "Dif\u00edcil", "discrimination": 0.7038961038961038, "discriminationClass": "Excelente", "percentCorrect": 45.28301886792453, "acertos": 48, "gabarito": "A", "questaoReal": 2}, "9": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [1, 101, 1, 0, 3, 0], "percentValues": [0.9433962264150944, 95.28301886792453, 0.9433962264150944, 0.0, 2.8301886792452833, 0.0], "difficulty": 0.9528301886792453, "difficultyClass": "F\u00e1cil", "discrimination": 0.06818181818181823, "discriminationClass": "Muito fraco ou negativo", "percentCorrect": 95.28301886792453, "acertos": 101, "gabarito": "B", "questaoReal": 4}, "10": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 54, 20, 0, 6, 0], "percentValues": [24.528301886792452, 50.943396226415096, 18.867924528301888, 0.0, 5.660377358490567, 0.0], "difficulty": 0.5094339622641509, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 50.943396226415096, "acertos": 54, "gabarito": "B", "questaoReal": 6}, "11": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [21, 8, 5, 8, 63, 1], "percentValues": [19.81132075471698, 7.547169811320755, 4.716981132075472, 7.547169811320755, 59.43396226415094, 0.9433962264150944], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.6357142857142857, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "E", "questaoReal": 8}, "12": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [59, 12, 17, 7, 11, 0], "percentValues": [55.660377358490564, 11.320754716981133, 16.037735849056602, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5566037735849056, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 55.660377358490564, "acertos": 59, "gabarito": "A", "questaoReal": 10}, "13": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 65, 10, 6, 21, 0], "percentValues": [3.7735849056603774, 61.32075471698113, 9.433962264150944, 5.660377358490567, 19.81132075471698, 0.0], "difficulty": 0.6132075471698113, "difficultyClass": "M\u00e9dio", "discrimination": 0.47077922077922074, "discriminationClass": "Excelente", "percentCorrect": 61.32075471698113, "acertos": 65, "gabarito": "B", "questaoReal": 12}, "14": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [5, 28, 10, 11, 51, 1], "percentValues": [4.716981132075472, 26.41509433962264, 9.433962264150944, 10.377358490566039, 48.113207547169814, 0.9433962264150944], "difficulty": 0.4811320754716981, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6298701298701298, "discriminationClass": "Excelente", "percentCorrect": 48.113207547169814, "acertos": 51, "gabarito": "E", "questaoReal": 14}}, "D": {"1": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [48, 10, 18, 12, 17, 1], "percentValues": [45.28301886792453, 9.433962264150944, 16.9811320754717, 11.320754716981133, 16.037735849056602, 0.9433962264150944], "difficulty": 0.4528301886792453, "difficultyClass": "Dif\u00edcil", "discrimination": 0.7038961038961038, "discriminationClass": "Excelente", "percentCorrect": 45.28301886792453, "acertos": 48, "gabarito": "A", "questaoReal": 2}, "2": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [1, 101, 1, 0, 3, 0], "percentValues": [0.9433962264150944, 95.28301886792453, 0.9433962264150944, 0.0, 2.8301886792452833, 0.0], "difficulty": 0.9528301886792453, "difficultyClass": "F\u00e1cil", "discrimination": 0.06818181818181823, "discriminationClass": "Muito fraco ou negativo", "percentCorrect": 95.28301886792453, "acertos": 101, "gabarito": "B", "questaoReal": 4}, "3": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 54, 20, 0, 6, 0], "percentValues": [24.528301886792452, 50.943396226415096, 18.867924528301888, 0.0, 5.660377358490567, 0.0], "difficulty": 0.5094339622641509, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 50.943396226415096, "acertos": 54, "gabarito": "B", "questaoReal": 6}, "4": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [21, 8, 5, 8, 63, 1], "percentValues": [19.81132075471698, 7.547169811320755, 4.716981132075472, 7.547169811320755, 59.43396226415094, 0.9433962264150944], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.6357142857142857, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "E", "questaoReal": 8}, "5": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [59, 12, 17, 7, 11, 0], "percentValues": [55.660377358490564, 11.320754716981133, 16.037735849056602, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5566037735849056, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 55.660377358490564, "acertos": 59, "gabarito": "A", "questaoReal": 10}, "6": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 65, 10, 6, 21, 0], "percentValues": [3.7735849056603774, 61.32075471698113, 9.433962264150944, 5.660377358490567, 19.81132075471698, 0.0], "difficulty": 0.6132075471698113, "difficultyClass": "M\u00e9dio", "discrimination": 0.47077922077922074, "discriminationClass": "Excelente", "percentCorrect": 61.32075471698113, "acertos": 65, "gabarito": "B", "questaoReal": 12}, "7": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [5, 28, 10, 11, 51, 1], "percentValues": [4.716981132075472, 26.41509433962264, 9.433962264150944, 10.377358490566039, 48.113207547169814, 0.9433962264150944], "difficulty": 0.4811320754716981, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6298701298701298, "discriminationClass": "Excelente", "percentCorrect": 48.113207547169814, "acertos": 51, "gabarito": "E", "questaoReal": 14}, "8": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 16, 3, 61, 22, 0], "percentValues": [3.7735849056603774, 15.09433962264151, 2.8301886792452833, 57.54716981132076, 20.754716981132077, 0.0], "difficulty": 0.5754716981132075, "difficultyClass": "M\u00e9dio", "discrimination": 0.33961038961038964, "discriminationClass": "Bom", "percentCorrect": 57.54716981132076, "acertos": 61, "gabarito": "D", "questaoReal": 1}, "9": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [63, 7, 18, 7, 11, 0], "percentValues": [59.43396226415094, 6.60377358490566, 16.9811320754717, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.5506493506493506, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "A", "questaoReal": 3}, "10": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [2, 1, 97, 6, 0, 0], "percentValues": [1.8867924528301887, 0.9433962264150944, 91.50943396226415, 5.660377358490567, 0.0, 0.0], "difficulty": 0.9150943396226415, "difficultyClass": "F\u00e1cil", "discrimination": 0.1019480519480519, "discriminationClass": "Fraco", "percentCorrect": 91.50943396226415, "acertos": 97, "gabarito": "C", "questaoReal": 5}, "11": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 7, 52, 14, 7, 0], "percentValues": [24.528301886792452, 6.60377358490566, 49.056603773584904, 13.20754716981132, 6.60377358490566, 0.0], "difficulty": 0.49056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.4246753246753247, "discriminationClass": "Excelente", "percentCorrect": 49.056603773584904, "acertos": 52, "gabarito": "C", "questaoReal": 7}, "12": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [11, 14, 31, 43, 7, 0], "percentValues": [10.377358490566039, 13.20754716981132, 29.245283018867923, 40.56603773584906, 6.60377358490566, 0.0], "difficulty": 0.4056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6694805194805196, "discriminationClass": "Excelente", "percentCorrect": 40.56603773584906, "acertos": 43, "gabarito": "D", "questaoReal": 9}, "13": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [6, 27, 39, 18, 16, 0], "percentValues": [5.660377358490567, 25.471698113207548, 36.79245283018868, 16.9811320754717, 15.09433962264151, 0.0], "difficulty": 0.36792452830188677, "difficultyClass": "Dif\u00edcil", "discrimination": 0.5266233766233767, "discriminationClass": "Excelente", "percentCorrect": 36.79245283018868, "acertos": 39, "gabarito": "C", "questaoReal": 11}, "14": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 1, 2, 3, 95, 1], "percentValues": [3.7735849056603774, 0.9433962264150944, 1.8867924528301887, 2.8301886792452833, 89.62264150943396, 0.9433962264150944], "difficulty": 0.8962264150943396, "difficultyClass": "F\u00e1cil", "discrimination": 0.2272727272727273, "discriminationClass": "Aceit\u00e1vel", "percentCorrect": 89.62264150943396, "acertos": 95, "gabarito": "E", "questaoReal": 13}}, "E": {"1": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 7, 52, 14, 7, 0], "percentValues": [24.528301886792452, 6.60377358490566, 49.056603773584904, 13.20754716981132, 6.60377358490566, 0.0], "difficulty": 0.49056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.4246753246753247, "discriminationClass": "Excelente", "percentCorrect": 49.056603773584904, "acertos": 52, "gabarito": "C", "questaoReal": 7}, "2": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 65, 10, 6, 21, 0], "percentValues": [3.7735849056603774, 61.32075471698113, 9.433962264150944, 5.660377358490567, 19.81132075471698, 0.0], "difficulty": 0.6132075471698113, "difficultyClass": "M\u00e9dio", "discrimination": 0.47077922077922074, "discriminationClass": "Excelente", "percentCorrect": 61.32075471698113, "acertos": 65, "gabarito": "B", "questaoReal": 12}, "3": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [1, 101, 1, 0, 3, 0], "percentValues": [0.9433962264150944, 95.28301886792453, 0.9433962264150944, 0.0, 2.8301886792452833, 0.0], "difficulty": 0.9528301886792453, "difficultyClass": "F\u00e1cil", "discrimination": 0.06818181818181823, "discriminationClass": "Muito fraco ou negativo", "percentCorrect": 95.28301886792453, "acertos": 101, "gabarito": "B", "questaoReal": 4}, "4": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [11, 14, 31, 43, 7, 0], "percentValues": [10.377358490566039, 13.20754716981132, 29.245283018867923, 40.56603773584906, 6.60377358490566, 0.0], "difficulty": 0.4056603773584906, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6694805194805196, "discriminationClass": "Excelente", "percentCorrect": 40.56603773584906, "acertos": 43, "gabarito": "D", "questaoReal": 9}, "5": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 16, 3, 61, 22, 0], "percentValues": [3.7735849056603774, 15.09433962264151, 2.8301886792452833, 57.54716981132076, 20.754716981132077, 0.0], "difficulty": 0.5754716981132075, "difficultyClass": "M\u00e9dio", "discrimination": 0.33961038961038964, "discriminationClass": "Bom", "percentCorrect": 57.54716981132076, "acertos": 61, "gabarito": "D", "questaoReal": 1}, "6": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [5, 28, 10, 11, 51, 1], "percentValues": [4.716981132075472, 26.41509433962264, 9.433962264150944, 10.377358490566039, 48.113207547169814, 0.9433962264150944], "difficulty": 0.4811320754716981, "difficultyClass": "Dif\u00edcil", "discrimination": 0.6298701298701298, "discriminationClass": "Excelente", "percentCorrect": 48.113207547169814, "acertos": 51, "gabarito": "E", "questaoReal": 14}, "7": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [63, 7, 18, 7, 11, 0], "percentValues": [59.43396226415094, 6.60377358490566, 16.9811320754717, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.5506493506493506, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "A", "questaoReal": 3}, "8": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [59, 12, 17, 7, 11, 0], "percentValues": [55.660377358490564, 11.320754716981133, 16.037735849056602, 6.60377358490566, 10.377358490566039, 0.0], "difficulty": 0.5566037735849056, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 55.660377358490564, "acertos": 59, "gabarito": "A", "questaoReal": 10}, "9": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [26, 54, 20, 0, 6, 0], "percentValues": [24.528301886792452, 50.943396226415096, 18.867924528301888, 0.0, 5.660377358490567, 0.0], "difficulty": 0.5094339622641509, "difficultyClass": "M\u00e9dio", "discrimination": 0.4474025974025974, "discriminationClass": "Excelente", "percentCorrect": 50.943396226415096, "acertos": 54, "gabarito": "B", "questaoReal": 6}, "10": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [48, 10, 18, 12, 17, 1], "percentValues": [45.28301886792453, 9.433962264150944, 16.9811320754717, 11.320754716981133, 16.037735849056602, 0.9433962264150944], "difficulty": 0.4528301886792453, "difficultyClass": "Dif\u00edcil", "discrimination": 0.7038961038961038, "discriminationClass": "Excelente", "percentCorrect": 45.28301886792453, "acertos": 48, "gabarito": "A", "questaoReal": 2}, "11": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [4, 1, 2, 3, 95, 1], "percentValues": [3.7735849056603774, 0.9433962264150944, 1.8867924528301887, 2.8301886792452833, 89.62264150943396, 0.9433962264150944], "difficulty": 0.8962264150943396, "difficultyClass": "F\u00e1cil", "discrimination": 0.2272727272727273, "discriminationClass": "Aceit\u00e1vel", "percentCorrect": 89.62264150943396, "acertos": 95, "gabarito": "E", "questaoReal": 13}, "12": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [21, 8, 5, 8, 63, 1], "percentValues": [19.81132075471698, 7.547169811320755, 4.716981132075472, 7.547169811320755, 59.43396226415094, 0.9433962264150944], "difficulty": 0.5943396226415094, "difficultyClass": "M\u00e9dio", "discrimination": 0.6357142857142857, "discriminationClass": "Excelente", "percentCorrect": 59.43396226415094, "acertos": 63, "gabarito": "E", "questaoReal": 8}, "13": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [2, 1, 97, 6, 0, 0], "percentValues": [1.8867924528301887, 0.9433962264150944, 91.50943396226415, 5.660377358490567, 0.0, 0.0], "difficulty": 0.9150943396226415, "difficultyClass": "F\u00e1cil", "discrimination": 0.1019480519480519, "discriminationClass": "Fraco", "percentCorrect": 91.50943396226415, "acertos": 97, "gabarito": "C", "questaoReal": 5}, "14": {"labels": ["A", "B", "C", "D", "E", "Em branco/Inv\u00e1lido"], "values": [6, 27, 39, 18, 16, 0], "percentValues": [5.660377358490567, 25.471698113207548, 36.79245283018868, 16.9811320754717, 15.09433962264151, 0.0], "difficulty": 0.36792452830188677, "difficultyClass": "Dif\u00edcil", "discrimination": 0.5266233766233767, "discriminationClass": "Excelente", "percentCorrect": 36.79245283018868, "acertos": 39, "gabarito": "C", "questaoReal": 11}}},
+            generalStats: {"A": {"general_stats": {"M\u00e9dia": 6.304245283018868, "Moda": 5.25, "Mediana": 6.0, "Desvio Padr\u00e3o": 2.2363354157290902, "Pontua\u00e7\u00e3o M\u00e1xima": 10.5, "Pontua\u00e7\u00e3o M\u00ednima": 0.75, "Total de Alunos": 106, "Pontos por Quest\u00e3o": 0.75, "Total de Quest\u00f5es": 14, "Tipo de Prova": "A"}, "question_stats": {"1": {"Respostas": {"A": 4, "B": 16, "C": 3, "D": 61, "E": 22, "X": 0}, "Gabarito": "D", "Dificuldade": 0.5754716981132075, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.33961038961038964, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Bom", "Percentual Acerto": 57.54716981132076, "Total Respostas": 106, "Acertos": 61, "Quest\u00e3o Real": 1}, "2": {"Respostas": {"A": 48, "B": 10, "C": 18, "D": 12, "E": 17, "X": 1}, "Gabarito": "A", "Dificuldade": 0.4528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.7038961038961038, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 45.28301886792453, "Total Respostas": 106, "Acertos": 48, "Quest\u00e3o Real": 2}, "3": {"Respostas": {"A": 63, "B": 7, "C": 18, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.5506493506493506, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 3}, "4": {"Respostas": {"A": 1, "B": 101, "C": 1, "D": 0, "E": 3, "X": 0}, "Gabarito": "B", "Dificuldade": 0.9528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.06818181818181823, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Muito fraco ou negativo", "Percentual Acerto": 95.28301886792453, "Total Respostas": 106, "Acertos": 101, "Quest\u00e3o Real": 4}, "5": {"Respostas": {"A": 2, "B": 1, "C": 97, "D": 6, "E": 0, "X": 0}, "Gabarito": "C", "Dificuldade": 0.9150943396226415, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.1019480519480519, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Fraco", "Percentual Acerto": 91.50943396226415, "Total Respostas": 106, "Acertos": 97, "Quest\u00e3o Real": 5}, "6": {"Respostas": {"A": 26, "B": 54, "C": 20, "D": 0, "E": 6, "X": 0}, "Gabarito": "B", "Dificuldade": 0.5094339622641509, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 50.943396226415096, "Total Respostas": 106, "Acertos": 54, "Quest\u00e3o Real": 6}, "7": {"Respostas": {"A": 26, "B": 7, "C": 52, "D": 14, "E": 7, "X": 0}, "Gabarito": "C", "Dificuldade": 0.49056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.4246753246753247, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 49.056603773584904, "Total Respostas": 106, "Acertos": 52, "Quest\u00e3o Real": 7}, "8": {"Respostas": {"A": 21, "B": 8, "C": 5, "D": 8, "E": 63, "X": 1}, "Gabarito": "E", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.6357142857142857, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 8}, "9": {"Respostas": {"A": 11, "B": 14, "C": 31, "D": 43, "E": 7, "X": 0}, "Gabarito": "D", "Dificuldade": 0.4056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6694805194805196, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 40.56603773584906, "Total Respostas": 106, "Acertos": 43, "Quest\u00e3o Real": 9}, "10": {"Respostas": {"A": 59, "B": 12, "C": 17, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5566037735849056, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 55.660377358490564, "Total Respostas": 106, "Acertos": 59, "Quest\u00e3o Real": 10}, "11": {"Respostas": {"A": 6, "B": 27, "C": 39, "D": 18, "E": 16, "X": 0}, "Gabarito": "C", "Dificuldade": 0.36792452830188677, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.5266233766233767, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 36.79245283018868, "Total Respostas": 106, "Acertos": 39, "Quest\u00e3o Real": 11}, "12": {"Respostas": {"A": 4, "B": 65, "C": 10, "D": 6, "E": 21, "X": 0}, "Gabarito": "B", "Dificuldade": 0.6132075471698113, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.47077922077922074, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 61.32075471698113, "Total Respostas": 106, "Acertos": 65, "Quest\u00e3o Real": 12}, "13": {"Respostas": {"A": 4, "B": 1, "C": 2, "D": 3, "E": 95, "X": 1}, "Gabarito": "E", "Dificuldade": 0.8962264150943396, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.2272727272727273, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Aceit\u00e1vel", "Percentual Acerto": 89.62264150943396, "Total Respostas": 106, "Acertos": 95, "Quest\u00e3o Real": 13}, "14": {"Respostas": {"A": 5, "B": 28, "C": 10, "D": 11, "E": 51, "X": 1}, "Gabarito": "E", "Dificuldade": 0.4811320754716981, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6298701298701298, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 48.113207547169814, "Total Respostas": 106, "Acertos": 51, "Quest\u00e3o Real": 14}}, "reliability": {"kr20": 0.6090536487142902, "classification": "Question\u00e1vel"}}, "B": {"general_stats": {"M\u00e9dia": 6.304245283018868, "Moda": 5.25, "Mediana": 6.0, "Desvio Padr\u00e3o": 2.2363354157290902, "Pontua\u00e7\u00e3o M\u00e1xima": 10.5, "Pontua\u00e7\u00e3o M\u00ednima": 0.75, "Total de Alunos": 106, "Pontos por Quest\u00e3o": 0.75, "Total de Quest\u00f5es": 14, "Tipo de Prova": "B"}, "question_stats": {"1": {"Respostas": {"A": 5, "B": 28, "C": 10, "D": 11, "E": 51, "X": 1}, "Gabarito": "E", "Dificuldade": 0.4811320754716981, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6298701298701298, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 48.113207547169814, "Total Respostas": 106, "Acertos": 51, "Quest\u00e3o Real": 14}, "2": {"Respostas": {"A": 4, "B": 1, "C": 2, "D": 3, "E": 95, "X": 1}, "Gabarito": "E", "Dificuldade": 0.8962264150943396, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.2272727272727273, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Aceit\u00e1vel", "Percentual Acerto": 89.62264150943396, "Total Respostas": 106, "Acertos": 95, "Quest\u00e3o Real": 13}, "3": {"Respostas": {"A": 4, "B": 65, "C": 10, "D": 6, "E": 21, "X": 0}, "Gabarito": "B", "Dificuldade": 0.6132075471698113, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.47077922077922074, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 61.32075471698113, "Total Respostas": 106, "Acertos": 65, "Quest\u00e3o Real": 12}, "4": {"Respostas": {"A": 6, "B": 27, "C": 39, "D": 18, "E": 16, "X": 0}, "Gabarito": "C", "Dificuldade": 0.36792452830188677, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.5266233766233767, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 36.79245283018868, "Total Respostas": 106, "Acertos": 39, "Quest\u00e3o Real": 11}, "5": {"Respostas": {"A": 59, "B": 12, "C": 17, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5566037735849056, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 55.660377358490564, "Total Respostas": 106, "Acertos": 59, "Quest\u00e3o Real": 10}, "6": {"Respostas": {"A": 11, "B": 14, "C": 31, "D": 43, "E": 7, "X": 0}, "Gabarito": "D", "Dificuldade": 0.4056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6694805194805196, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 40.56603773584906, "Total Respostas": 106, "Acertos": 43, "Quest\u00e3o Real": 9}, "7": {"Respostas": {"A": 21, "B": 8, "C": 5, "D": 8, "E": 63, "X": 1}, "Gabarito": "E", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.6357142857142857, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 8}, "8": {"Respostas": {"A": 26, "B": 7, "C": 52, "D": 14, "E": 7, "X": 0}, "Gabarito": "C", "Dificuldade": 0.49056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.4246753246753247, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 49.056603773584904, "Total Respostas": 106, "Acertos": 52, "Quest\u00e3o Real": 7}, "9": {"Respostas": {"A": 26, "B": 54, "C": 20, "D": 0, "E": 6, "X": 0}, "Gabarito": "B", "Dificuldade": 0.5094339622641509, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 50.943396226415096, "Total Respostas": 106, "Acertos": 54, "Quest\u00e3o Real": 6}, "10": {"Respostas": {"A": 2, "B": 1, "C": 97, "D": 6, "E": 0, "X": 0}, "Gabarito": "C", "Dificuldade": 0.9150943396226415, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.1019480519480519, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Fraco", "Percentual Acerto": 91.50943396226415, "Total Respostas": 106, "Acertos": 97, "Quest\u00e3o Real": 5}, "11": {"Respostas": {"A": 1, "B": 101, "C": 1, "D": 0, "E": 3, "X": 0}, "Gabarito": "B", "Dificuldade": 0.9528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.06818181818181823, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Muito fraco ou negativo", "Percentual Acerto": 95.28301886792453, "Total Respostas": 106, "Acertos": 101, "Quest\u00e3o Real": 4}, "12": {"Respostas": {"A": 63, "B": 7, "C": 18, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.5506493506493506, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 3}, "13": {"Respostas": {"A": 48, "B": 10, "C": 18, "D": 12, "E": 17, "X": 1}, "Gabarito": "A", "Dificuldade": 0.4528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.7038961038961038, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 45.28301886792453, "Total Respostas": 106, "Acertos": 48, "Quest\u00e3o Real": 2}, "14": {"Respostas": {"A": 4, "B": 16, "C": 3, "D": 61, "E": 22, "X": 0}, "Gabarito": "D", "Dificuldade": 0.5754716981132075, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.33961038961038964, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Bom", "Percentual Acerto": 57.54716981132076, "Total Respostas": 106, "Acertos": 61, "Quest\u00e3o Real": 1}}, "reliability": {"kr20": 0.6090536487142904, "classification": "Question\u00e1vel"}}, "C": {"general_stats": {"M\u00e9dia": 6.304245283018868, "Moda": 5.25, "Mediana": 6.0, "Desvio Padr\u00e3o": 2.2363354157290902, "Pontua\u00e7\u00e3o M\u00e1xima": 10.5, "Pontua\u00e7\u00e3o M\u00ednima": 0.75, "Total de Alunos": 106, "Pontos por Quest\u00e3o": 0.75, "Total de Quest\u00f5es": 14, "Tipo de Prova": "C"}, "question_stats": {"1": {"Respostas": {"A": 4, "B": 16, "C": 3, "D": 61, "E": 22, "X": 0}, "Gabarito": "D", "Dificuldade": 0.5754716981132075, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.33961038961038964, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Bom", "Percentual Acerto": 57.54716981132076, "Total Respostas": 106, "Acertos": 61, "Quest\u00e3o Real": 1}, "2": {"Respostas": {"A": 63, "B": 7, "C": 18, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.5506493506493506, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 3}, "3": {"Respostas": {"A": 2, "B": 1, "C": 97, "D": 6, "E": 0, "X": 0}, "Gabarito": "C", "Dificuldade": 0.9150943396226415, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.1019480519480519, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Fraco", "Percentual Acerto": 91.50943396226415, "Total Respostas": 106, "Acertos": 97, "Quest\u00e3o Real": 5}, "4": {"Respostas": {"A": 26, "B": 7, "C": 52, "D": 14, "E": 7, "X": 0}, "Gabarito": "C", "Dificuldade": 0.49056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.4246753246753247, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 49.056603773584904, "Total Respostas": 106, "Acertos": 52, "Quest\u00e3o Real": 7}, "5": {"Respostas": {"A": 11, "B": 14, "C": 31, "D": 43, "E": 7, "X": 0}, "Gabarito": "D", "Dificuldade": 0.4056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6694805194805196, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 40.56603773584906, "Total Respostas": 106, "Acertos": 43, "Quest\u00e3o Real": 9}, "6": {"Respostas": {"A": 6, "B": 27, "C": 39, "D": 18, "E": 16, "X": 0}, "Gabarito": "C", "Dificuldade": 0.36792452830188677, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.5266233766233767, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 36.79245283018868, "Total Respostas": 106, "Acertos": 39, "Quest\u00e3o Real": 11}, "7": {"Respostas": {"A": 4, "B": 1, "C": 2, "D": 3, "E": 95, "X": 1}, "Gabarito": "E", "Dificuldade": 0.8962264150943396, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.2272727272727273, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Aceit\u00e1vel", "Percentual Acerto": 89.62264150943396, "Total Respostas": 106, "Acertos": 95, "Quest\u00e3o Real": 13}, "8": {"Respostas": {"A": 48, "B": 10, "C": 18, "D": 12, "E": 17, "X": 1}, "Gabarito": "A", "Dificuldade": 0.4528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.7038961038961038, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 45.28301886792453, "Total Respostas": 106, "Acertos": 48, "Quest\u00e3o Real": 2}, "9": {"Respostas": {"A": 1, "B": 101, "C": 1, "D": 0, "E": 3, "X": 0}, "Gabarito": "B", "Dificuldade": 0.9528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.06818181818181823, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Muito fraco ou negativo", "Percentual Acerto": 95.28301886792453, "Total Respostas": 106, "Acertos": 101, "Quest\u00e3o Real": 4}, "10": {"Respostas": {"A": 26, "B": 54, "C": 20, "D": 0, "E": 6, "X": 0}, "Gabarito": "B", "Dificuldade": 0.5094339622641509, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 50.943396226415096, "Total Respostas": 106, "Acertos": 54, "Quest\u00e3o Real": 6}, "11": {"Respostas": {"A": 21, "B": 8, "C": 5, "D": 8, "E": 63, "X": 1}, "Gabarito": "E", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.6357142857142857, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 8}, "12": {"Respostas": {"A": 59, "B": 12, "C": 17, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5566037735849056, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 55.660377358490564, "Total Respostas": 106, "Acertos": 59, "Quest\u00e3o Real": 10}, "13": {"Respostas": {"A": 4, "B": 65, "C": 10, "D": 6, "E": 21, "X": 0}, "Gabarito": "B", "Dificuldade": 0.6132075471698113, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.47077922077922074, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 61.32075471698113, "Total Respostas": 106, "Acertos": 65, "Quest\u00e3o Real": 12}, "14": {"Respostas": {"A": 5, "B": 28, "C": 10, "D": 11, "E": 51, "X": 1}, "Gabarito": "E", "Dificuldade": 0.4811320754716981, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6298701298701298, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 48.113207547169814, "Total Respostas": 106, "Acertos": 51, "Quest\u00e3o Real": 14}}, "reliability": {"kr20": 0.6090536487142904, "classification": "Question\u00e1vel"}}, "D": {"general_stats": {"M\u00e9dia": 6.304245283018868, "Moda": 5.25, "Mediana": 6.0, "Desvio Padr\u00e3o": 2.2363354157290902, "Pontua\u00e7\u00e3o M\u00e1xima": 10.5, "Pontua\u00e7\u00e3o M\u00ednima": 0.75, "Total de Alunos": 106, "Pontos por Quest\u00e3o": 0.75, "Total de Quest\u00f5es": 14, "Tipo de Prova": "D"}, "question_stats": {"1": {"Respostas": {"A": 48, "B": 10, "C": 18, "D": 12, "E": 17, "X": 1}, "Gabarito": "A", "Dificuldade": 0.4528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.7038961038961038, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 45.28301886792453, "Total Respostas": 106, "Acertos": 48, "Quest\u00e3o Real": 2}, "2": {"Respostas": {"A": 1, "B": 101, "C": 1, "D": 0, "E": 3, "X": 0}, "Gabarito": "B", "Dificuldade": 0.9528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.06818181818181823, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Muito fraco ou negativo", "Percentual Acerto": 95.28301886792453, "Total Respostas": 106, "Acertos": 101, "Quest\u00e3o Real": 4}, "3": {"Respostas": {"A": 26, "B": 54, "C": 20, "D": 0, "E": 6, "X": 0}, "Gabarito": "B", "Dificuldade": 0.5094339622641509, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 50.943396226415096, "Total Respostas": 106, "Acertos": 54, "Quest\u00e3o Real": 6}, "4": {"Respostas": {"A": 21, "B": 8, "C": 5, "D": 8, "E": 63, "X": 1}, "Gabarito": "E", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.6357142857142857, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 8}, "5": {"Respostas": {"A": 59, "B": 12, "C": 17, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5566037735849056, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 55.660377358490564, "Total Respostas": 106, "Acertos": 59, "Quest\u00e3o Real": 10}, "6": {"Respostas": {"A": 4, "B": 65, "C": 10, "D": 6, "E": 21, "X": 0}, "Gabarito": "B", "Dificuldade": 0.6132075471698113, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.47077922077922074, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 61.32075471698113, "Total Respostas": 106, "Acertos": 65, "Quest\u00e3o Real": 12}, "7": {"Respostas": {"A": 5, "B": 28, "C": 10, "D": 11, "E": 51, "X": 1}, "Gabarito": "E", "Dificuldade": 0.4811320754716981, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6298701298701298, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 48.113207547169814, "Total Respostas": 106, "Acertos": 51, "Quest\u00e3o Real": 14}, "8": {"Respostas": {"A": 4, "B": 16, "C": 3, "D": 61, "E": 22, "X": 0}, "Gabarito": "D", "Dificuldade": 0.5754716981132075, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.33961038961038964, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Bom", "Percentual Acerto": 57.54716981132076, "Total Respostas": 106, "Acertos": 61, "Quest\u00e3o Real": 1}, "9": {"Respostas": {"A": 63, "B": 7, "C": 18, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.5506493506493506, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 3}, "10": {"Respostas": {"A": 2, "B": 1, "C": 97, "D": 6, "E": 0, "X": 0}, "Gabarito": "C", "Dificuldade": 0.9150943396226415, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.1019480519480519, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Fraco", "Percentual Acerto": 91.50943396226415, "Total Respostas": 106, "Acertos": 97, "Quest\u00e3o Real": 5}, "11": {"Respostas": {"A": 26, "B": 7, "C": 52, "D": 14, "E": 7, "X": 0}, "Gabarito": "C", "Dificuldade": 0.49056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.4246753246753247, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 49.056603773584904, "Total Respostas": 106, "Acertos": 52, "Quest\u00e3o Real": 7}, "12": {"Respostas": {"A": 11, "B": 14, "C": 31, "D": 43, "E": 7, "X": 0}, "Gabarito": "D", "Dificuldade": 0.4056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6694805194805196, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 40.56603773584906, "Total Respostas": 106, "Acertos": 43, "Quest\u00e3o Real": 9}, "13": {"Respostas": {"A": 6, "B": 27, "C": 39, "D": 18, "E": 16, "X": 0}, "Gabarito": "C", "Dificuldade": 0.36792452830188677, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.5266233766233767, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 36.79245283018868, "Total Respostas": 106, "Acertos": 39, "Quest\u00e3o Real": 11}, "14": {"Respostas": {"A": 4, "B": 1, "C": 2, "D": 3, "E": 95, "X": 1}, "Gabarito": "E", "Dificuldade": 0.8962264150943396, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.2272727272727273, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Aceit\u00e1vel", "Percentual Acerto": 89.62264150943396, "Total Respostas": 106, "Acertos": 95, "Quest\u00e3o Real": 13}}, "reliability": {"kr20": 0.6090536487142902, "classification": "Question\u00e1vel"}}, "E": {"general_stats": {"M\u00e9dia": 6.304245283018868, "Moda": 5.25, "Mediana": 6.0, "Desvio Padr\u00e3o": 2.2363354157290902, "Pontua\u00e7\u00e3o M\u00e1xima": 10.5, "Pontua\u00e7\u00e3o M\u00ednima": 0.75, "Total de Alunos": 106, "Pontos por Quest\u00e3o": 0.75, "Total de Quest\u00f5es": 14, "Tipo de Prova": "E"}, "question_stats": {"1": {"Respostas": {"A": 26, "B": 7, "C": 52, "D": 14, "E": 7, "X": 0}, "Gabarito": "C", "Dificuldade": 0.49056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.4246753246753247, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 49.056603773584904, "Total Respostas": 106, "Acertos": 52, "Quest\u00e3o Real": 7}, "2": {"Respostas": {"A": 4, "B": 65, "C": 10, "D": 6, "E": 21, "X": 0}, "Gabarito": "B", "Dificuldade": 0.6132075471698113, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.47077922077922074, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 61.32075471698113, "Total Respostas": 106, "Acertos": 65, "Quest\u00e3o Real": 12}, "3": {"Respostas": {"A": 1, "B": 101, "C": 1, "D": 0, "E": 3, "X": 0}, "Gabarito": "B", "Dificuldade": 0.9528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.06818181818181823, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Muito fraco ou negativo", "Percentual Acerto": 95.28301886792453, "Total Respostas": 106, "Acertos": 101, "Quest\u00e3o Real": 4}, "4": {"Respostas": {"A": 11, "B": 14, "C": 31, "D": 43, "E": 7, "X": 0}, "Gabarito": "D", "Dificuldade": 0.4056603773584906, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6694805194805196, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 40.56603773584906, "Total Respostas": 106, "Acertos": 43, "Quest\u00e3o Real": 9}, "5": {"Respostas": {"A": 4, "B": 16, "C": 3, "D": 61, "E": 22, "X": 0}, "Gabarito": "D", "Dificuldade": 0.5754716981132075, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.33961038961038964, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Bom", "Percentual Acerto": 57.54716981132076, "Total Respostas": 106, "Acertos": 61, "Quest\u00e3o Real": 1}, "6": {"Respostas": {"A": 5, "B": 28, "C": 10, "D": 11, "E": 51, "X": 1}, "Gabarito": "E", "Dificuldade": 0.4811320754716981, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.6298701298701298, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 48.113207547169814, "Total Respostas": 106, "Acertos": 51, "Quest\u00e3o Real": 14}, "7": {"Respostas": {"A": 63, "B": 7, "C": 18, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.5506493506493506, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 3}, "8": {"Respostas": {"A": 59, "B": 12, "C": 17, "D": 7, "E": 11, "X": 0}, "Gabarito": "A", "Dificuldade": 0.5566037735849056, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 55.660377358490564, "Total Respostas": 106, "Acertos": 59, "Quest\u00e3o Real": 10}, "9": {"Respostas": {"A": 26, "B": 54, "C": 20, "D": 0, "E": 6, "X": 0}, "Gabarito": "B", "Dificuldade": 0.5094339622641509, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.4474025974025974, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 50.943396226415096, "Total Respostas": 106, "Acertos": 54, "Quest\u00e3o Real": 6}, "10": {"Respostas": {"A": 48, "B": 10, "C": 18, "D": 12, "E": 17, "X": 1}, "Gabarito": "A", "Dificuldade": 0.4528301886792453, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.7038961038961038, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 45.28301886792453, "Total Respostas": 106, "Acertos": 48, "Quest\u00e3o Real": 2}, "11": {"Respostas": {"A": 4, "B": 1, "C": 2, "D": 3, "E": 95, "X": 1}, "Gabarito": "E", "Dificuldade": 0.8962264150943396, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.2272727272727273, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Aceit\u00e1vel", "Percentual Acerto": 89.62264150943396, "Total Respostas": 106, "Acertos": 95, "Quest\u00e3o Real": 13}, "12": {"Respostas": {"A": 21, "B": 8, "C": 5, "D": 8, "E": 63, "X": 1}, "Gabarito": "E", "Dificuldade": 0.5943396226415094, "Classifica\u00e7\u00e3o Dificuldade": "M\u00e9dio", "Discrimina\u00e7\u00e3o": 0.6357142857142857, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 59.43396226415094, "Total Respostas": 106, "Acertos": 63, "Quest\u00e3o Real": 8}, "13": {"Respostas": {"A": 2, "B": 1, "C": 97, "D": 6, "E": 0, "X": 0}, "Gabarito": "C", "Dificuldade": 0.9150943396226415, "Classifica\u00e7\u00e3o Dificuldade": "F\u00e1cil", "Discrimina\u00e7\u00e3o": 0.1019480519480519, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Fraco", "Percentual Acerto": 91.50943396226415, "Total Respostas": 106, "Acertos": 97, "Quest\u00e3o Real": 5}, "14": {"Respostas": {"A": 6, "B": 27, "C": 39, "D": 18, "E": 16, "X": 0}, "Gabarito": "C", "Dificuldade": 0.36792452830188677, "Classifica\u00e7\u00e3o Dificuldade": "Dif\u00edcil", "Discrimina\u00e7\u00e3o": 0.5266233766233767, "Classifica\u00e7\u00e3o Discrimina\u00e7\u00e3o": "Excelente", "Percentual Acerto": 36.79245283018868, "Total Respostas": 106, "Acertos": 39, "Quest\u00e3o Real": 11}}, "reliability": {"kr20": 0.6090536487142902, "classification": "Question\u00e1vel"}}},
+            totalAlunos: 106
+        };
+        
+        // Estado atual
+        let currentProvaType = 'A';
+        let currentSort = 'number';
+        
+        // Histograma de distribuição de notas com curva normal
+        function renderHistogram() {
+            const histData = {
+                x: allData.scores,
+                type: 'histogram',
+                xbins: {start: 0, end: 100, size: 10},
+                marker: {color: '#3498db'},
+                histnorm: 'percent',
+                name: 'Distribuição'
+            };
+            
+            // Calcular curva normal
+            const mean = 60.04043126684636;
+            const std = 21.29843253075324;
+            const x = Array.from({length: 101}, (_, i) => i);
+            const y = x.map(v => {
+                return 100 * (10 / std) * Math.exp(-0.5 * Math.pow((v - mean) / std, 2));
+            });
+            
+            const normalCurve = {
+                x: x,
+                y: y,
+                type: 'line',
+                line: {color: '#e74c3c', width: 3},
+                name: 'Curva Normal'
+            };
+            
+            Plotly.newPlot('histogram', [histData, normalCurve], {
+                title: 'Distribuição de Desempenho (%)',
+                xaxis: {title: 'Percentual de Acerto', range: [0, 100]},
+                yaxis: {title: 'Percentual de Alunos (%)'},
+                legend: {orientation: 'h', y: 1.1}
+            });
+        }
+        
+        // Renderizar todos os gráficos de questões
+        function renderAllQuestionCharts() {
+            const container = document.getElementById('question-charts');
+            container.innerHTML = '';
+            
+            const questionData = allData.allQuestionData[currentProvaType];
+            
+            for (let q = 1; q <= 14; q++) {
+                const data = questionData[q];
+                const gabarito = data.gabarito;
+                const questaoReal = data.questaoReal;
+                
+                const chartDiv = document.createElement('div');
+                chartDiv.className = 'question-card';
+                chartDiv.id = `question-chart-${q}`;
+                container.appendChild(chartDiv);
+                
+                const colors = data.labels.map(label => {
+                    if (label === 'Em branco/Inválido') return '#95a5a6';
+                    if ('ABCDE'.includes(label) && label === gabarito) return '#2ecc71';
+                    return '#e74c3c';
+                });
+                
+                const trace = {
+                    x: data.labels,
+                    y: data.percentValues,
+                    type: 'bar',
+                    marker: { color: colors },
+                    text: data.percentValues.map(v => v.toFixed(1) + '%'),
+                    textposition: 'auto'
+                };
+                
+                Plotly.newPlot(chartDiv, [trace], {
+                    title: `Questão ${q} (Real ${questaoReal}) - ${data.percentCorrect.toFixed(1)}% de acerto (${data.acertos}/${allData.totalAlunos})`,
+                    xaxis: {title: 'Alternativas'},
+                    yaxis: {title: 'Percentual (%)'},
+                    annotations: [
+                        {
+                            text: `Dificuldade: ${data.difficulty.toFixed(2)} (<span class="classification ${ 
+                                data.difficultyClass === 'Fácil' ? 'easy' : 
+                                data.difficultyClass === 'Médio' ? 'medium' : 
+                                data.difficultyClass === 'Difícil' ? 'hard' : 'very-hard' 
+                            }">${data.difficultyClass}</span>) | Discriminação: ${data.discrimination.toFixed(2)} (<span class="classification ${ 
+                                data.discriminationClass.includes('Excelente') ? 'excellent' : 
+                                data.discriminationClass.includes('Bom') ? 'good' : 
+                                data.discriminationClass.includes('Aceitável') ? 'acceptable' : 
+                                data.discriminationClass.includes('Fraco') ? 'weak' : 'very-weak' 
+                            }">${data.discriminationClass}</span>)`,
+                            x: 0.5,
+                            y: -0.3,
+                            xref: 'paper',
+                            yref: 'paper',
+                            showarrow: false,
+                            align: 'center'
+                        },
+                        {
+                            text: `Gabarito: ${gabarito || 'Não identificado'}`,
+                            x: 0.5,
+                            y: -0.4,
+                            xref: 'paper',
+                            yref: 'paper',
+                            showarrow: false,
+                            font: {color: '#2ecc71'}
+                        }
+                    ],
+                    margin: {t: 40, b: 120}
+                });
+            }
+        }
+        
+        // Atualizar estatísticas gerais
+        function updateGeneralStats() {
+            const stats = allData.generalStats[currentProvaType].general_stats;
+            const reliability = allData.generalStats[currentProvaType].reliability;
+            
+            document.getElementById('media').textContent = stats['Média'].toFixed(2);
+            document.getElementById('moda').textContent = stats['Moda'].toFixed(2);
+            document.getElementById('mediana').textContent = stats['Mediana'].toFixed(2);
+            document.getElementById('desvio').textContent = stats['Desvio Padrão'].toFixed(2);
+            document.getElementById('maxima').textContent = stats['Pontuação Máxima'].toFixed(2);
+            document.getElementById('minima').textContent = stats['Pontuação Mínima'].toFixed(2);
+            
+            document.getElementById('kr20-value').textContent = reliability['kr20'].toFixed(3);
+            const kr20Class = document.getElementById('kr20-class');
+            kr20Class.textContent = reliability['classification'];
+            kr20Class.style.color = reliability['kr20'] >= 0.7 ? 'green' : 'red';
+        }
+        
+        // Renderizar gráficos psicométricos
+        function renderPsychometricCharts(sortBy = 'number') {
+            currentSort = sortBy;
+            const questionData = allData.allQuestionData[currentProvaType];
+            let questions = Array.from({length: 14}, (_, i) => i + 1);
+            
+            // Ordenar questões se necessário
+            if (sortBy === 'difficulty') {
+                questions.sort((a, b) => questionData[b].difficulty - questionData[a].difficulty);
+            } else if (sortBy === 'discrimination') {
+                questions.sort((a, b) => questionData[b].discrimination - questionData[a].discrimination);
+            }
+            
+            // Gráfico de Dificuldade
+            Plotly.newPlot('difficulty-chart', [{
+                x: questions.map(q => `Q${q} (R${questionData[q].questaoReal})`),
+                y: questions.map(q => questionData[q].difficulty),
+                type: 'bar',
+                marker: {
+                    color: questions.map(q => {
+                        const p = questionData[q].difficulty;
+                        return p >= 0.75 ? '#27ae60' : 
+                               p >= 0.5 ? '#f39c12' : 
+                               p >= 0.25 ? '#e74c3c' : '#c0392b';
+                    })
+                },
+                text: questions.map(q => questionData[q].difficulty.toFixed(2)),
+                textposition: 'auto',
+                hovertext: questions.map(q => 
+                    'Q' + q + ': ' + questionData[q].difficultyClass + ' (' + questionData[q].difficulty.toFixed(2) + ')'
+                ),
+                hoverinfo: 'text'
+            }], {
+                title: 'Índice de Dificuldade por Questão',
+                xaxis: {title: 'Questão (R=Questão Real)'},
+                yaxis: {title: 'Índice (0-1)', range: [0, 1]},
+                margin: {t: 40, b: 80}
+            });
+            
+            // Gráfico de Discriminação
+            Plotly.newPlot('discrimination-chart', [{
+                x: questions.map(q => `Q${q} (R${questionData[q].questaoReal})`),
+                y: questions.map(q => questionData[q].discrimination),
+                type: 'bar',
+                marker: {
+                    color: questions.map(q => {
+                        const d = questionData[q].discrimination;
+                        return d >= 0.4 ? '#27ae60' : 
+                               d >= 0.3 ? '#2ecc71' : 
+                               d >= 0.2 ? '#f39c12' : 
+                               d >= 0.1 ? '#e67e22' : '#e74c3c';
+                    })
+                },
+                text: questions.map(q => questionData[q].discrimination.toFixed(2)),
+                textposition: 'auto',
+                hovertext: questions.map(q => 
+                    'Q' + q + ': ' + questionData[q].discriminationClass + ' (' + questionData[q].discrimination.toFixed(2) + ')'
+                ),
+                hoverinfo: 'text'
+            }], {
+                title: 'Índice de Discriminação por Questão',
+                xaxis: {title: 'Questão (R=Questão Real)'},
+                yaxis: {title: 'Índice (-1 a 1)', range: [-1, 1]},
+                margin: {t: 40, b: 80}
+            });
+        }
+        
+        // Função de ordenação
+        function sortPsychometricCharts(sortBy) {
+            // Atualizar botões ativos
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.classList.remove('active-sort');
+                if (btn.textContent === 'Número' && sortBy === 'number') btn.classList.add('active-sort');
+                if (btn.textContent === 'Dificuldade' && sortBy === 'difficulty') btn.classList.add('active-sort');
+                if (btn.textContent === 'Discriminação' && sortBy === 'discrimination') btn.classList.add('active-sort');
+            });
+            
+            renderPsychometricCharts(sortBy);
+        }
+        
+        // Mudar tipo de prova
+        function changeProvaType() {
+            const newType = document.getElementById('prova-type').value;
+            if (newType === currentProvaType) return;
+            
+            document.getElementById('loading').style.display = 'flex';
+            
+            // Simular delay para visualização do loading
+            setTimeout(() => {
+                currentProvaType = newType;
+                updateGeneralStats();
+                renderAllQuestionCharts();
+                renderPsychometricCharts(currentSort);
+                document.getElementById('loading').style.display = 'none';
+            }, 300);
+        }
+        
+        // Renderizar todos os gráficos quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            renderHistogram();
+            renderAllQuestionCharts();
+            renderPsychometricCharts();
+        });
+    </script>    
+</body>
+</html>
+    <!-- Início da Seção de Referências (Adicionar esta parte) -->
+    <div class="card">
+        <h2>Referências Bibliográficas</h2>
+        <div style="font-size: 14px; line-height: 1.6; padding: 10px;">
+            <ul style="margin-top: 0;">
+                <li style="margin-bottom: 8px;">Ebel, R. L., & Frisbie, D. A. (1991). <em>Essentials of Educational Measurement</em>. Prentice-Hall.</li>
+                <li style="margin-bottom: 8px;">Kelley, T. L. (1939). The selection of upper and lower groups for the validation of test items. <em>Journal of Educational Psychology</em>, 30(1), 17-24.</li>
+                <li style="margin-bottom: 8px;">Kuder, G. F., & Richardson, M. W. (1937). The theory of the estimation of test reliability. <em>Psychometrika</em>, 2(3), 151-160.</li>
+            </ul>
+        </div>
+    </div>
+    <!-- Fim da Seção de Referências -->
+    </body>
+    </html>
+    
